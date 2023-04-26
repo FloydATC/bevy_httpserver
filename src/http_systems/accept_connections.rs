@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
 
+use crate::HttpClientAddress;
 use crate::HttpClientConnection;
 use crate::HttpConnectionServer;
 use crate::HttpConnectionTask;
@@ -39,7 +40,9 @@ pub fn http_accept_connections(
                     return connserv.run();
                 });
 
-                commands.spawn(HttpConnectionTask::new(task, request, response));
+                commands
+                    .spawn(HttpConnectionTask::new(task, request, response))
+                    .insert(HttpClientAddress(peer));
             }
         }
     }

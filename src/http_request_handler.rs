@@ -56,7 +56,6 @@ impl HttpRequestHandler {
 
 
     pub fn error_response(&self, status: StatusCode) -> Response<Bytes> {
-        info!("error_response() for {} called", self.dir_name);
         let message = format!("{} {}", status.as_u16(), status.canonical_reason().unwrap());
         return Response::builder()
             .status(status)

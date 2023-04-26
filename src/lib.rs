@@ -59,6 +59,7 @@ use bevy::prelude::*;
 pub use vebb::{Request, Response, StatusCode, Method, HeaderName, HeaderValue, HeaderMap, Uri, Bytes};
 
 mod http_path;
+mod http_client_address;
 mod http_client_connection;
 mod http_connection_server;
 mod http_connection_task;
@@ -67,6 +68,7 @@ mod http_server_resource;
 mod http_server_plugin;
 mod http_systems;
 
+pub use http_client_address::*;
 pub use http_client_connection::*;
 pub use http_connection_server::*;
 pub use http_connection_task::*;
