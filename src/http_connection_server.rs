@@ -17,6 +17,8 @@ See also: HttpConnectionTask
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use bevy::prelude::*;
+
 use vebb::*;
 
 use super::HttpClientConnection;
@@ -45,6 +47,7 @@ impl HttpConnectionServer {
     pub fn run(&mut self) -> Result<(), String> {
         loop {
             // Read request from client and put it in self.request
+            let summary;
             match vebb::read_request(self.connection.reader()) {
                 Err(status) => {
                     return Err(format!("{}: {}", self.connection.peer(), status));
@@ -52,7 +55,10 @@ impl HttpConnectionServer {
                 Ok(opt_request) => { 
                     match opt_request {
                         None => break, // Connection closed by peer
-                        Some(request) => self.set_request(Some(request)),
+                        Some(request) => {
+                            summary = format!("{} {}",request.method().as_str(), request.uri().to_string());
+                            self.set_request(Some(request))
+                        }
                     }
                 }
             }
@@ -64,6 +70,7 @@ impl HttpConnectionServer {
             let response = self.take_response();
 
             let keep_alive = vebb::keep_alive_granted(&response);
+            info!("{} {} {}", summary, response.status().as_str(), response.status().canonical_reason().unwrap());
             if let Err(os_error) = vebb::send_response(response, self.connection.writer()) {
                 if os_error.kind() == std::io::ErrorKind::ConnectionAborted { break; } // Connection closed by peer
                 return Err(format!("send_response returned {}", os_error));
