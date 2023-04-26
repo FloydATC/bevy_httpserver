@@ -1,4 +1,6 @@
 
+// Utility type for matching partial paths against HTTP request URI paths,
+// this code is meant only to cover the very specific needs of HttpServerPlugin
 
 #[derive(Clone, Default, PartialEq)]
 pub struct HttpPath {
