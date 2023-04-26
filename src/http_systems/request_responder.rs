@@ -1,82 +1,10 @@
 
-
-use std::sync::{Arc, Mutex};
-
 use bevy::prelude::*;
-use bevy::tasks::AsyncComputeTaskPool;
-use smol::future;
 
 use vebb::*;
 
-use super::HttpClientConnection;
-use super::HttpConnectionServer;
-use super::HttpConnectionTask;
-use super::HttpServerResource;
-
-
-pub fn http_accept_connections(
-    server: Res<HttpServerResource>,
-    mut commands: Commands,
-) {
-    loop {
-        match server.listener().accept() {
-            Err(os_error) => {
-                // WouldBlock means no connections waiting; come back later
-                if os_error.kind() == std::io::ErrorKind::WouldBlock { break; }
-                // Any other error means something went wrong
-                panic!("accept() on http listener returned {}", os_error);
-            }
-            Ok((stream, peer)) => {
-                info!("connected: {:?} {:?}", stream, peer);    
-                stream.set_nonblocking(false).expect("can't set non_blocking = false");
-                let request = Arc::new(Mutex::new(None));
-                let response = Arc::new(Mutex::new(None));
-                let mut connserv = HttpConnectionServer::new(
-                    HttpClientConnection::new(stream, peer),
-                    request.clone(),
-                    response.clone(),
-                );
-            
-                let pool = AsyncComputeTaskPool::get();
-
-                let task = pool.spawn(async move {
-                    return connserv.run();
-                });
-
-                commands.spawn(HttpConnectionTask::new(task, request, response));
-            }
-        }
-    }
-}
-
-
-pub fn http_connection_status(
-    mut query: Query<(Entity, &mut HttpConnectionTask)>,
-    mut commands: Commands,
-) {
-    // Check status of async tasks
-    for (entity, mut conntask) in query.iter_mut() {
-        check_conntask_status(entity, &mut conntask, &mut commands);
-    }
-}
-
-
-// Helper function for http_connection_status()
-fn check_conntask_status(
-    task_entity: Entity,
-    handle: &mut HttpConnectionTask,
-    commands: &mut Commands,
-) {
-    if let Some(result) = future::block_on(future::poll_once(handle.get_mut_task())) {
-        match result {
-            Ok(_) => {}
-            Err(msg) => warn!("HttpConnectionTask crashed: {}", msg),
-        }
-        commands
-            .entity(task_entity)
-            .despawn();
-    }
-}
+use crate::HttpConnectionTask;
+use crate::HttpServerResource;
 
 
 // This system has World access, which means it can read/write any entity, component or resource
