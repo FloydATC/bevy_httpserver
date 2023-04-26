@@ -67,3 +67,181 @@ impl HttpRequestHandler {
     }
     
 }
+
+
+#[cfg(test)]
+#[allow(dead_code)]
+mod tests {
+    use super::*;
+
+    fn test_handler_ok(_world: &mut World, _request: &Request<Bytes>) -> Result<Response<Bytes>, StatusCode> {
+        let response = Response::builder()
+            .status(StatusCode::OK)
+            .body(Bytes::from_static(b""))
+            .unwrap();
+
+        return Ok(response);
+    }
+
+    fn test_handler_error(_world: &mut World, _request: &Request<Bytes>) -> Result<Response<Bytes>, StatusCode> {
+        let response = Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Bytes::from_static(b""))
+            .unwrap();
+
+        return Ok(response);
+    }
+
+    #[test]
+    fn new_1() {
+        let _handler: HttpRequestHandler = HttpRequestHandler::new("/", test_handler_ok);
+        assert!(true);
+    }
+
+    #[test]
+    fn new_2() {
+        let _handler: HttpRequestHandler = HttpRequestHandler::new("/", test_handler_error);
+        assert!(true);
+    }
+
+    #[test]
+    fn handle_root() {
+        let handler: HttpRequestHandler = HttpRequestHandler::new("/", test_handler_ok);
+        let request = Request::builder()
+            .uri("/")
+            .body(Bytes::from_static(b""))
+            .unwrap();
+        let mut world = World::new();
+
+        match handler.handle(&mut world, "/", &request) {
+            Err(status) => { panic!("handler returned {:?} {:?}", status.as_str(), status.canonical_reason()); }
+            Ok(_) => { assert!(true) }
+        }
+    }
+
+    #[test]
+    fn handle_not_found() {
+        let handler: HttpRequestHandler = HttpRequestHandler::new("/", test_handler_ok);
+        let request = Request::builder()
+            .uri("/missing")
+            .body(Bytes::from_static(b""))
+            .unwrap();
+        let mut world = World::new();
+
+        match handler.handle(&mut world, "/", &request) {
+            Err(status) => { assert_eq!(status, StatusCode::NOT_FOUND); }
+            Ok(_) => { panic!("handler should have returned 404 Not Found"); }
+        }
+    }
+
+    #[test]
+    fn handle_hierarchy_1() {
+        let handler: HttpRequestHandler = 
+            HttpRequestHandler::new("/", test_handler_ok)
+                .add_child(
+                    HttpRequestHandler::new("foo", test_handler_error)
+                )
+                .add_child(
+                    HttpRequestHandler::new("bar", test_handler_error)
+                );
+        let request = Request::builder()
+            .uri("/")
+            .body(Bytes::from_static(b""))
+            .unwrap();
+        let mut world = World::new();
+
+        match handler.handle(&mut world, "/", &request) {
+            Err(status) => { panic!("handler returned {:?} {:?}", status.as_str(), status.canonical_reason()); }
+            Ok(_) => { assert!(true) }
+        }
+    }
+
+    #[test]
+    fn handle_hierarchy_2() {
+        let handler: HttpRequestHandler = 
+            HttpRequestHandler::new("/", test_handler_error)
+                .add_child(
+                    HttpRequestHandler::new("foo", test_handler_ok)
+                )
+                .add_child(
+                    HttpRequestHandler::new("bar", test_handler_error)
+                );
+        let request = Request::builder()
+            .uri("/foo")
+            .body(Bytes::from_static(b""))
+            .unwrap();
+        let mut world = World::new();
+
+        match handler.handle(&mut world, "/", &request) {
+            Err(status) => { panic!("handler returned {:?} {:?}", status.as_str(), status.canonical_reason()); }
+            Ok(_) => { assert!(true) }
+        }
+    }
+
+    #[test]
+    fn handle_hierarchy_3() {
+        let handler: HttpRequestHandler = 
+            HttpRequestHandler::new("/", test_handler_error)
+                .add_child(
+                    HttpRequestHandler::new("foo", test_handler_error)
+                )
+                .add_child(
+                    HttpRequestHandler::new("bar", test_handler_ok)
+                );
+        let request = Request::builder()
+            .uri("/bar")
+            .body(Bytes::from_static(b""))
+            .unwrap();
+        let mut world = World::new();
+
+        match handler.handle(&mut world, "/", &request) {
+            Err(status) => { panic!("handler returned {:?} {:?}", status.as_str(), status.canonical_reason()); }
+            Ok(_) => { assert!(true) }
+        }
+    }
+
+    #[test]
+    fn handle_hierarchy_4() {
+        let handler: HttpRequestHandler = 
+            HttpRequestHandler::new("/", test_handler_error)
+                .add_child(
+                    HttpRequestHandler::new("foo", test_handler_ok)
+                        .add_child(
+                            HttpRequestHandler::new("bar", test_handler_error)
+                        )
+                );
+        let request = Request::builder()
+            .uri("/foo")
+            .body(Bytes::from_static(b""))
+            .unwrap();
+        let mut world = World::new();
+
+        match handler.handle(&mut world, "/", &request) {
+            Err(status) => { panic!("handler returned {:?} {:?}", status.as_str(), status.canonical_reason()); }
+            Ok(_) => { assert!(true) }
+        }
+    }
+
+    #[test]
+    fn handle_hierarchy_5() {
+        let handler: HttpRequestHandler = 
+            HttpRequestHandler::new("/", test_handler_error)
+                .add_child(
+                    HttpRequestHandler::new("foo", test_handler_error)
+                        .add_child(
+                            HttpRequestHandler::new("bar", test_handler_ok)
+                        )
+                );
+        let request = Request::builder()
+            .uri("/foo/bar")
+            .body(Bytes::from_static(b""))
+            .unwrap();
+        let mut world = World::new();
+
+        match handler.handle(&mut world, "/", &request) {
+            Err(status) => { panic!("handler returned {:?} {:?}", status.as_str(), status.canonical_reason()); }
+            Ok(_) => { assert!(true) }
+        }
+    }
+
+}
